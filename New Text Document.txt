@@ -2,85 +2,89 @@
 actor Fiserv User
 participant AI_SYSTEM
 participant Service_CASTLE
-participant CASTLE_DB
+participant Service_RDBMS
 participant Confluence
-participant Sharepoint
-participant Onedrive
+participant SharePoint
+participant OneDrive
 participant AI_GATEWAY
 
 == Begin : Creation of new Datasets - Batch ==
     note over Service_CASTLE
-        Datasets would be created based on a
+        Datasets are created based on a
         YAML describing the datapipeline needs of a BU.
-        YAML also includes the Digital Worker token.
+        The YAML also includes the Digital Worker token.
     end note 
     Service_CASTLE -> Service_CASTLE : Process YAML
 
-    alt confluence_connector
+    alt Confluence_Connector
         Service_CASTLE -> Confluence : Get Spaces & Titles \n the digital worker \n has access to
         Service_CASTLE -> Confluence : Get Documents
-    else sharepoint_connector 
-        Service_CASTLE -> Sharepoint : Get Sites \n the digital worker \n has access to
-        Service_CASTLE -> Sharepoint : Get Documents
-    else Onedrive_connector 
-        Service_CASTLE -> Onedrive : Get Folders \n the digital worker \n has access to
-        Service_CASTLE -> Onedrive : Get Documents
+    else SharePoint_Connector 
+        Service_CASTLE -> SharePoint : Get Sites \n the Digital Worker \n has access to
+        Service_CASTLE -> SharePoint : Get Documents
+    else OneDrive_connector 
+        Service_CASTLE -> OneDrive : Get Folders \n the Digital Worker \n has access to
+        Service_CASTLE -> OneDrive : Get Documents
     end
+   
     Service_CASTLE -> Service_CASTLE : Parse Documents
     Service_CASTLE -> Service_CASTLE : Remove Table of Contents
-    Service_CASTLE -> Service_CASTLE : Remove Documents based on \n Class 1 classification
+    Service_CASTLE -> Service_CASTLE : Remove Documents based on \n (Class 1 Classification)
     Service_CASTLE -> Service_CASTLE : Chunk Documents
-    loop process each chunk \n multi threaded
+   
+    loop Process Each Chunk \n (Multi-threaded)
         Service_CASTLE  -> AI_GATEWAY : Detect & Redact PCI/PII/PHI data \n Vectorize Content 
-        AI_GATEWAY -> Service_CASTLE : Vector Collection
+        AI_GATEWAY -> Service_CASTLE : Return Vector Collection
         Service_CASTLE -> VECTOR_DB : Store Vector Collection 
     end loop
-    Service_CASTLE -> CASTLE_DB : Create Dataset \n Link Collection \n Link Datasource Details
-== End : Creation of new Datasets - Batch ==
+    
+    Service_CASTLE -> Service_RDBMS : Create Dataset \n Link Collection \n Link Datasource Details
+== End : Creation of New Datasets - Batch ==
 
 == Begin : AI_SYSTEM Display of Datasets User has access to ==
-    AI_SYSTEM -> Service_CASTLE : Get Datasets (userid)
+    AI_SYSTEM -> Service_CASTLE : Get Datasets (UserID)
     Service_CASTLE -> Confluence : Get Spaces & Titles \n User has access to
-    Service_CASTLE -> Sharepoint : Get Sites the User has access to
-    Service_CASTLE -> Onedrive : Get Folders the User has access to
-    Service_CASTLE -> CASTLE_DB : Get Datasets linked to \n Spaces\Titles\Sites \n User has access to
+    Service_CASTLE -> SharePoint : Get Sites the User has access to
+    Service_CASTLE -> OneDrive : Get Folders the User has access to
+    Service_CASTLE -> Service_RDBMS : Get Datasets linked to \n Spaces\Titles\Sites \n User has access to
+    
     note over Service_CASTLE 
-        Datsources are the 
-        Spaces, Titles, Sites, Folders
-        User has access to
+        Datsources included the 
+        Spaces, Titles, Sites and Folders
+        the User has access to
     end note 
     Service_CASTLE --> AI_SYSTEM : Datasets & Datasources \n User has access to
     AI_SYSTEM -> AI_SYSTEM : Display Datasets & Datasources \n User has access to
-== End : AI_SYSTEM Display of Datasets User has access to ==
+== End : AI_SYSTEM Display of Datasets User Has Access To ==
 
-== Begin : Chat Completion based on documents User has access to ==
+== Begin : Chat Completion Based on Documents User Has Access To ==
     AI_SYSTEM -> AI_SYSTEM : User picks the Collection
     AI_SYSTEM -> AI_SYSTEM : User enters prompt
-    AI_SYSTEM -> Service_CASTLE : /chatcompletion \n {datasetid or datasource, userid, \n personaid,userPrompt}
-    alt datasetid passed
+    AI_SYSTEM -> Service_CASTLE : /chatcompletion \n {datasetID or datasource, userID, \n personaid,userPrompt}
+    alt datasetID passed
         note over Service_CASTLE 
             Static : RAG based on 
-            datasets & similarity search on
+            Datasets & Similarity Search on
             Vectorized Content
          end note 
-        Service_CASTLE -> VECTOR_DB : Get Collection and \n linked documents based on the prompt
-        Service_CASTLE -> CASTLE : From the list of \n Embeddings linked documents \n include only those the \n User has access to
+        Service_CASTLE -> VECTOR_DB : Get Collection and \n Linked Documents based on the prompt
+        Service_CASTLE -> Service_CASTLE : From the list of \n Embeddings Linked Documents \n include only those the \n User has access to
         Service_CASTLE -> AI_GATEWAY : /chatcompletion {prompt, embeddings}
     else datasource passed
         note over Service_CASTLE 
-            Dynamic: Realtime sourcing them 
+            Dynamic: Real-time sourcing of 
             documents form Datasources and
-            Document Upload
+            User Document Upload
          end note 
-        alt confluence 
+        alt Confluence 
             Service_CASTLE -> Confluence : Get Document/Content
-        else sharepoint 
-            Service_CASTLE -> Sharepoint : Get Document/Content
-        else onedrive
-            Service_CASTLE -> Onedrive : Get Document/Content 
+        else SharePoint 
+            Service_CASTLE -> SharePoint : Get Document/Content
+        else OneDrive
+            Service_CASTLE -> OneDrive : Get Document/Content 
         end 
         Service_CASTLE -> Service_CASTLE : Parse Document/Content
-        Service_CASTLE  -> AI_GATEWAY : Detect & Redact PCI/PII/PHI data 
+        Service_CASTLE  -> AI_GATEWAY : Detect & Redact PCI/PII/PHI Data 
         Service_CASTLE -> AI_GATEWAY : /chatcompletion {prompt, attach document content}
     end 
         
